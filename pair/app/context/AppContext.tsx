@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useReducer, ReactNode, useEffect } from 'react';
-import { AppState, AppAction, CapturedSentence, ChatMessage } from '../types';
+import { AppState, AppAction, CapturedSentence, ChatMessage, TweetComment } from '../types';
 
 const STORAGE_KEY = 'pair-app-state';
 
@@ -9,12 +9,17 @@ const initialState: AppState = {
   messages: [],
   isStreaming: false,
   capturedSentences: [],
-  docMode: 'bullets',
+  docMode: 'narrative',
   narrativeContent: '',
   isHighlightMode: false,
   highlightedSentences: new Set(),
   isPublished: false,
   layout: 'chat-right', // Default: chat on right, doc on left
+  
+  // Thread state
+  tweetComments: [],
+  isCommentModalOpen: false,
+  selectedTweetIndex: null,
 };
 
 function saveToLocalStorage(state: AppState) {
@@ -37,11 +42,23 @@ function loadFromLocalStorage(): AppState {
     if (!saved) return initialState;
     
     const parsed = JSON.parse(saved);
+    
+    // Convert timestamp strings back to Date objects in tweetComments
+    const tweetComments = (parsed.tweetComments || []).map((comment: any) => ({
+      ...comment,
+      timestamp: new Date(comment.timestamp)
+    }));
+    
     return {
-      ...parsed,
+      ...initialState, // Start with initialState as base to ensure all properties exist
+      ...parsed, // Override with saved values
       highlightedSentences: new Set(parsed.highlightedSentences || []), // Convert Array back to Set
       isStreaming: false, // Always start with streaming false
       isHighlightMode: false, // Always start with highlight mode false
+      // Ensure thread properties have defaults and proper types
+      tweetComments,
+      isCommentModalOpen: false,
+      selectedTweetIndex: null,
     };
   } catch (error) {
     console.warn('Failed to load from localStorage:', error);
@@ -67,16 +84,19 @@ function appReducer(state: AppState, action: AppAction): AppState {
       break;
     
     case 'CAPTURE_SENTENCE':
+      // Find the message to get its index for ordering
+      const messageIndex = state.messages.findIndex(m => m.id === action.payload.messageId);
       const newSentence: CapturedSentence = {
         id: `sentence-${Date.now()}`,
         content: action.payload.sentence,
         messageId: action.payload.messageId,
-        order: state.capturedSentences.length,
+        order: messageIndex * 1000 + (action.payload.sentenceIndex || 0), // Use message order * 1000 + sentence index for proper ordering
         isHighlighted: true,
+        sentenceIndex: action.payload.sentenceIndex || 0,
       };
       newState = {
         ...state,
-        capturedSentences: [...state.capturedSentences, newSentence],
+        capturedSentences: [...state.capturedSentences, newSentence].sort((a, b) => a.order - b.order),
       };
       break;
     
@@ -84,6 +104,13 @@ function appReducer(state: AppState, action: AppAction): AppState {
       newState = {
         ...state,
         docMode: state.docMode === 'bullets' ? 'narrative' : 'bullets',
+      };
+      break;
+    
+    case 'SET_DOC_MODE':
+      newState = {
+        ...state,
+        docMode: action.payload,
       };
       break;
     
@@ -97,12 +124,28 @@ function appReducer(state: AppState, action: AppAction): AppState {
     
     case 'TOGGLE_SENTENCE_HIGHLIGHT':
       const newHighlighted = new Set(state.highlightedSentences);
-      if (newHighlighted.has(action.payload)) {
-        newHighlighted.delete(action.payload);
+      const sentenceId = action.payload;
+      
+      if (newHighlighted.has(sentenceId)) {
+        // Remove from highlighted sentences
+        newHighlighted.delete(sentenceId);
+        // Also remove from captured sentences
+        const updatedCapturedSentences = state.capturedSentences.filter(
+          sentence => {
+            const messageSentenceId = `${sentence.messageId}-sentence-${sentence.sentenceIndex}`;
+            return messageSentenceId !== sentenceId;
+          }
+        );
+        newState = { 
+          ...state, 
+          highlightedSentences: newHighlighted,
+          capturedSentences: updatedCapturedSentences
+        };
       } else {
-        newHighlighted.add(action.payload);
+        // Just add to highlighted sentences (capture will be handled separately)
+        newHighlighted.add(sentenceId);
+        newState = { ...state, highlightedSentences: newHighlighted };
       }
-      newState = { ...state, highlightedSentences: newHighlighted };
       break;
     
     case 'PUBLISH_DOCUMENT':
@@ -124,6 +167,37 @@ function appReducer(state: AppState, action: AppAction): AppState {
         console.warn('Failed to clear localStorage:', error);
       }
       newState = { ...initialState };
+      break;
+    
+    case 'ADD_TWEET_COMMENT':
+      const newComment: TweetComment = {
+        id: `comment-${Date.now()}`,
+        content: action.payload.content,
+        timestamp: new Date(),
+        tweetIndex: action.payload.tweetIndex,
+      };
+      newState = {
+        ...state,
+        tweetComments: [...state.tweetComments, newComment],
+        isCommentModalOpen: false,
+        selectedTweetIndex: null,
+      };
+      break;
+    
+    case 'OPEN_COMMENT_MODAL':
+      newState = {
+        ...state,
+        isCommentModalOpen: true,
+        selectedTweetIndex: action.payload,
+      };
+      break;
+    
+    case 'CLOSE_COMMENT_MODAL':
+      newState = {
+        ...state,
+        isCommentModalOpen: false,
+        selectedTweetIndex: null,
+      };
       break;
     
     default:

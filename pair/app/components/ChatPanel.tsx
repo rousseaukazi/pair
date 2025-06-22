@@ -156,7 +156,9 @@ export default function ChatPanel() {
   // Track shift key for highlight mode
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Shift') {
+      // Don't activate highlight mode if typing in the textarea
+      const isTypingInTextarea = document.activeElement === textareaRef.current;
+      if (e.key === 'Shift' && !isTypingInTextarea) {
         dispatch({ type: 'SET_HIGHLIGHT_MODE', payload: true });
       }
     };

@@ -12,9 +12,17 @@ export interface CapturedSentence {
   messageId: string;
   order: number;
   isHighlighted: boolean;
+  sentenceIndex: number;
 }
 
-export type DocMode = 'bullets' | 'narrative';
+export type DocMode = 'bullets' | 'narrative' | 'thread';
+
+export interface TweetComment {
+  id: string;
+  content: string;
+  timestamp: Date;
+  tweetIndex: number;
+}
 
 export interface AppState {
   // Chat state
@@ -31,17 +39,26 @@ export interface AppState {
   isHighlightMode: boolean;
   highlightedSentences: Set<string>;
   layout: 'chat-left' | 'chat-right';
+  
+  // Thread state
+  tweetComments: TweetComment[];
+  isCommentModalOpen: boolean;
+  selectedTweetIndex: number | null;
 }
 
 export type AppAction = 
   | { type: 'ADD_MESSAGE'; payload: ChatMessage }
   | { type: 'SET_STREAMING'; payload: boolean }
-  | { type: 'CAPTURE_SENTENCE'; payload: { sentence: string; messageId: string } }
+  | { type: 'CAPTURE_SENTENCE'; payload: { sentence: string; messageId: string; sentenceIndex?: number } }
   | { type: 'TOGGLE_DOC_MODE' }
+  | { type: 'SET_DOC_MODE'; payload: DocMode }
   | { type: 'UPDATE_NARRATIVE'; payload: string }
   | { type: 'PUBLISH_DOCUMENT' }
   | { type: 'SET_HIGHLIGHT_MODE'; payload: boolean }
   | { type: 'TOGGLE_SENTENCE_HIGHLIGHT'; payload: string }
   | { type: 'TOGGLE_LAYOUT' }
   | { type: 'CLEAR_ALL' }
-  | { type: 'LOAD_FROM_STORAGE' }; 
+  | { type: 'LOAD_FROM_STORAGE' }
+  | { type: 'ADD_TWEET_COMMENT'; payload: { tweetIndex: number; content: string } }
+  | { type: 'OPEN_COMMENT_MODAL'; payload: number }
+  | { type: 'CLOSE_COMMENT_MODAL' }; 

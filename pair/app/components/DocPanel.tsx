@@ -1,8 +1,10 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { FileText, List, BookOpen, Upload, RefreshCw } from 'lucide-react';
+import { FileText, List, BookOpen, Upload, RefreshCw, Twitter } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
+import TwitterThread from './TwitterThread';
+import CommentModal from './CommentModal';
 
 export default function DocPanel() {
   const { state, dispatch } = useAppContext();
@@ -54,7 +56,16 @@ export default function DocPanel() {
   };
 
   const toggleDocMode = () => {
-    dispatch({ type: 'TOGGLE_DOC_MODE' });
+    // Cycle through the three modes: narrative -> bullets -> thread -> narrative
+    if (state.docMode === 'narrative') {
+      dispatch({ type: 'TOGGLE_DOC_MODE' }); // This will set to 'bullets'
+    } else if (state.docMode === 'bullets') {
+      // We need a new action or modify the existing one to handle three states
+      // For now, let's manually dispatch the state change
+      dispatch({ type: 'SET_DOC_MODE', payload: 'thread' });
+    } else {
+      dispatch({ type: 'SET_DOC_MODE', payload: 'narrative' });
+    }
   };
 
   const isEmpty = state.capturedSentences.length === 0;
@@ -74,7 +85,18 @@ export default function DocPanel() {
               {/* Mode Toggle */}
               <div className="flex border border-gray-300 rounded-lg overflow-hidden">
                 <button
-                  onClick={toggleDocMode}
+                  onClick={() => dispatch({ type: 'SET_DOC_MODE', payload: 'narrative' })}
+                  className={`px-3 py-1.5 text-sm flex items-center gap-1 ${
+                    state.docMode === 'narrative'
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  <BookOpen size={14} />
+                  Narrative
+                </button>
+                <button
+                  onClick={() => dispatch({ type: 'SET_DOC_MODE', payload: 'bullets' })}
                   className={`px-3 py-1.5 text-sm flex items-center gap-1 ${
                     state.docMode === 'bullets'
                       ? 'bg-blue-500 text-white'
@@ -85,20 +107,20 @@ export default function DocPanel() {
                   Bullets
                 </button>
                 <button
-                  onClick={toggleDocMode}
+                  onClick={() => dispatch({ type: 'SET_DOC_MODE', payload: 'thread' })}
                   className={`px-3 py-1.5 text-sm flex items-center gap-1 ${
-                    state.docMode === 'narrative'
+                    state.docMode === 'thread'
                       ? 'bg-blue-500 text-white'
                       : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
                   }`}
                 >
-                  <BookOpen size={14} />
-                  Narrative
+                  <Twitter size={14} />
+                  Thread
                 </button>
               </div>
 
               {/* Regenerate Narrative Button */}
-              {state.docMode === 'narrative' && (
+              {(state.docMode === 'narrative' || state.docMode === 'thread') && (
                 <button
                   onClick={handleRegenerateNarrative}
                   disabled={isGeneratingNarrative}
@@ -137,6 +159,17 @@ export default function DocPanel() {
                   </div>
                 ))}
               </div>
+            ) : state.docMode === 'thread' ? (
+              <>
+                {isGeneratingNarrative && state.narrativeContent === '' ? (
+                  <div className="flex items-center gap-2 text-gray-500">
+                    <RefreshCw size={16} className="animate-spin" />
+                    Generating thread...
+                  </div>
+                ) : (
+                  <TwitterThread narrative={state.narrativeContent} />
+                )}
+              </>
             ) : (
               <div className="prose prose-gray max-w-none">
                 {isGeneratingNarrative && state.narrativeContent === '' ? (
@@ -180,6 +213,9 @@ export default function DocPanel() {
           </p>
         </div>
       )}
+
+      {/* Comment Modal */}
+      <CommentModal />
     </div>
   );
 } 

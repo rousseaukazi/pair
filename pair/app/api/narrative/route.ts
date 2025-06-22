@@ -16,12 +16,22 @@ export async function POST(request: NextRequest) {
     // Create bullet points from sentences
     const bulletPoints = sentences.map((sentence: string) => `• ${sentence}`).join('\n');
 
-    const prompt = `Take the following bullet points and write them in a concise and logical summary to make it easy for the user to understand and learn the points being shared. Focus on clarity, logical flow, and helping the reader grasp the key concepts and information.
+    const prompt = `Transform the following bullet points into a Twitter thread format that efficiently ramps up readers on the key insights. Structure it as separate paragraphs where each paragraph:
+
+- Is bite-sized and discussion-worthy 
+- Flows logically from the previous point
+- Contains one clear, actionable insight or key concept
+- Is written in an engaging, informational tone
+- Can stand alone as a conversation starter
+
+Each paragraph should be separated by a double line break and represent what would be an individual tweet. Don't include numbering (like 1/n, 2/n) or calls-to-action like "RT/Follow" since this is for internal discussion, not actual Twitter publishing.
+
+Make each paragraph conversational yet informative, like you're explaining complex ideas to a friend. Focus on the most impactful insights first, then build supporting details. End with a thought-provoking conclusion.
 
 Bullet points:
 ${bulletPoints}
 
-Summary:`;
+Twitter Thread:`;
 
     const response = await anthropic.messages.create({
       model: 'claude-3-5-sonnet-20241022',

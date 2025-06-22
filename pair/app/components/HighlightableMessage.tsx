@@ -68,7 +68,7 @@ export default function HighlightableMessage({ message }: HighlightableMessagePr
     if (!state.highlightedSentences.has(sentenceId)) {
       dispatch({ 
         type: 'CAPTURE_SENTENCE', 
-        payload: { sentence, messageId: message.id } 
+        payload: { sentence, messageId: message.id, sentenceIndex }
       });
     }
   };
